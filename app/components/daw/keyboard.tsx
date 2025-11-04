@@ -6,6 +6,9 @@ import useHandleClickNote from "@/hooks/useHandleClickNote";
 
 type KeyboardProps = {
   keyBoardNumber: number;
+  activeKeys?: number[];
+  onNoteDown?: (midi:number)=>void;
+  onNoteUp?: (midi:number)=>void;
 };
 
 export default function Keyboard(props: KeyboardProps){
@@ -19,9 +22,9 @@ export default function Keyboard(props: KeyboardProps){
         {keyToneMap.map((note, idx) => (
           <div
             key={idx}
-            onClick={handleClickNote(note)}
+            onClick={(e) => { handleClickNote(note)(e); props.onNoteDown?.(note); setTimeout(()=>props.onNoteUp?.(note), 200); }}
           >
-            <WhiteKey />
+            <WhiteKey isActive={props.activeKeys?.includes(note)} />
           </div>
         ))}
       </div>

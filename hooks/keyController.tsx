@@ -2,24 +2,27 @@
 
 import { useEffect } from 'react'
 import useSyntheWorklet from '@/hooks/useSyntheWorklet'
-import midiToFreq from '@/hooks/midiToFreq'
 
 type KeyMap = Record<string, number | undefined>
 
-export default function KeyboardController({ keyMap }: { keyMap: KeyMap }) {
-  const { setFreq, trigger, noteOff } = useSyntheWorklet()
+export default function KeyboardController({ keyMap, onNoteDown, onNoteUp }: { keyMap: KeyMap, onNoteDown?: (midi:number)=>void, onNoteUp?: (midi:number)=>void }) {
+  const { playMidi, noteOff } = useSyntheWorklet()
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       if (e.repeat) return
       const note = keyMap[e.key]
       if (note !== undefined) {
-        setFreq(midiToFreq(note));
-        trigger();
+        playMidi(note);
+        onNoteDown?.(note);
       }
     }
     const onUp = (e: KeyboardEvent) => {
-      if (keyMap[e.key] !== undefined) noteOff()
+      const note = keyMap[e.key]
+      if (note !== undefined) {
+        noteOff()
+        onNoteUp?.(note);
+      }
     }
 
     window.addEventListener('keydown', onDown)
@@ -28,7 +31,7 @@ export default function KeyboardController({ keyMap }: { keyMap: KeyMap }) {
       window.removeEventListener('keydown', onDown)
       window.removeEventListener('keyup', onUp)
     }
-  }, [keyMap, setFreq, trigger, noteOff])
+  }, [keyMap, playMidi, noteOff, onNoteDown, onNoteUp])
 
   return null
 }

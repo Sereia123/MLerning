@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAudioContextConst, loadWorkletModule } from '@/lib/audio';
+import midiToFreq from './midiToFreq';
 
 export default function useSyntheWorklet() {
   //AudioContextはスタジオ
@@ -12,32 +13,8 @@ export default function useSyntheWorklet() {
   // 初期化済みフラグ
   const isInitializedRef = useRef(false);
 
-  // マウント時に AudioContext とエンベロープを事前初期化(レイテンシを下げる)
-  useEffect(() => {
-    async function initAudio() {
-      if (isInitializedRef.current) return;
-      const AudioContextClass = getAudioContextConst();
-      const ac = new AudioContextClass();
-      const amp = new GainNode(ac, { gain: 0 });
-      amp.connect(ac.destination);
-      // 先に resume 
-      if (ac.state === 'suspended') {
-        try {
-          await ac.resume();
-        } catch {}
-      }
-      contextRef.current = ac;
-      ampRef.current = amp;
-      isInitializedRef.current = true;
-    }
-    initAudio();
-    return () => {
-      contextRef.current?.close();
-      contextRef.current = null;
-      ampRef.current = null;
-      isInitializedRef.current = false;
-    };
-  }, []);
+  // AudioContext は自動で作らず、ユーザー操作時に初回生成する。
+  // これはブラウザの自動再生制限（ユーザー操作前の AudioContext resume 禁止）を回避するため。
 
   const [running, setRunning] = useState(false);
   const [freq, setFreq] = useState(() => {
@@ -51,8 +28,18 @@ export default function useSyntheWorklet() {
 
   // こまごまとした設定
   const ensureReady = useCallback(async () => {
-    if (!isInitializedRef.current) return; // 初期化待ち
-    if (nodeRef.current) return; 
+    // 初回呼び出し時に AudioContext と GainNode を作成する（ユーザー操作内で呼ぶことで許可される）
+    if (!isInitializedRef.current) {
+      const AudioContextClass = getAudioContextConst();
+      const ac = new AudioContextClass();
+      const amp = new GainNode(ac, { gain: 0 });
+      amp.connect(ac.destination);
+      contextRef.current = ac;
+      ampRef.current = amp;
+      isInitializedRef.current = true;
+    }
+
+    if (nodeRef.current) return;
 
     const ac = contextRef.current!;
     await loadWorkletModule(ac, '/worklets/processor.js');
@@ -65,6 +52,7 @@ export default function useSyntheWorklet() {
 
     node.connect(ampRef.current!);
 
+    // ユーザー操作内で呼ばれていれば resume は許可される
     if (ac.state === 'suspended') {
       try {
         await ac.resume();
@@ -154,5 +142,30 @@ export default function useSyntheWorklet() {
     amp.gain.linearRampToValueAtTime(0, now + 0.03);
   }, []);
 
-  return { running, start, stop, freq, setFreq, gain, setGain, wave, setWave, pulseWidth, setPulseWidth, duration, setDuration, trigger, noteOff};
+  // ミディ番号で即時に音を鳴らす (周波数を書き換えてからエンベロープ)
+  const playMidi = useCallback(async (midi: number) => {
+    await ensureReady();
+    const ac = contextRef.current;
+    const amp = ampRef.current;
+    const node = nodeRef.current;
+    if (!ac || !amp || !node) return;
+
+    const f = midiToFreq(midi);
+    try {
+      node.parameters.get('frequency')?.setValueAtTime(f, ac.currentTime);
+    } catch  {}
+
+    // エンベロープ（trigger と同じ処理）
+    const now = ac.currentTime;
+    const A = 0.005; // Attack 5ms
+    const R = 0.05;  // Release 50ms
+    const current = typeof amp.gain.value === 'number' ? amp.gain.value : 0;
+    amp.gain.cancelScheduledValues(now);
+    amp.gain.setValueAtTime(current, now);
+    amp.gain.linearRampToValueAtTime(1, now + A);
+    amp.gain.setValueAtTime(1, now + A + duration);
+    amp.gain.linearRampToValueAtTime(0, now + A + duration + R);
+  }, [ensureReady, duration]);
+
+  return { running, start, stop, freq, setFreq, gain, setGain, wave, setWave, pulseWidth, setPulseWidth, duration, setDuration, trigger, noteOff, playMidi};
   }
