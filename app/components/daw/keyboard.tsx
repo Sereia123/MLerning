@@ -15,14 +15,18 @@ export default function Keyboard(props: KeyboardProps){
 
   const keyToneMap = getKeyToneWhiteMap(props.keyBoardNumber);
 
-  const handleClickNote = useHandleClickNote();
+  const { handleMouseDown, handleMouseUp } = useHandleClickNote();
   return (
     <>
       <div className="h-full w-[20%] bg-gray-700">
         {keyToneMap.map((note, idx) => (
           <div
             key={idx}
-            onClick={(e) => { handleClickNote(note)(e); props.onNoteDown?.(note); setTimeout(()=>props.onNoteUp?.(note), 200); }}
+            onMouseDown={() => { handleMouseDown(note)(); props.onNoteDown?.(note); }}
+            onMouseUp={() => { handleMouseUp(note)(); props.onNoteUp?.(note); }}
+            onMouseLeave={() => { handleMouseUp(note)(); props.onNoteUp?.(note); }}
+            onTouchStart={() => { handleMouseDown(note)(); props.onNoteDown?.(note); }}
+            onTouchEnd={() => { handleMouseUp(note)(); props.onNoteUp?.(note); }}
           >
             <WhiteKey isActive={props.activeKeys?.includes(note)} />
           </div>

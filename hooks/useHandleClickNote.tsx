@@ -1,13 +1,20 @@
 import useSyntheWorklet from "./useSyntheWorklet";
 
 export default function useHandleClickNote() {
-  const { playMidi } = useSyntheWorklet();
+  const { noteOn, noteOff } = useSyntheWorklet();
 
-  function handleClickNote(f: number): React.MouseEventHandler<HTMLDivElement> {
+  function handleMouseDown(f: number): () => void {
     return function () {
-      playMidi(f);
+      noteOn(f);
     };
   }
 
-  return handleClickNote;
+  function handleMouseUp(f: number): () => void {
+    return function () {
+      void f;
+      noteOff();
+    };
+  }
+
+  return { handleMouseDown, handleMouseUp };
 }

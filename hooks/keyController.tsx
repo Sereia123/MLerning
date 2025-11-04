@@ -6,14 +6,14 @@ import useSyntheWorklet from '@/hooks/useSyntheWorklet'
 type KeyMap = Record<string, number | undefined>
 
 export default function KeyboardController({ keyMap, onNoteDown, onNoteUp }: { keyMap: KeyMap, onNoteDown?: (midi:number)=>void, onNoteUp?: (midi:number)=>void }) {
-  const { playMidi, noteOff } = useSyntheWorklet()
+  const { noteOn, noteOff } = useSyntheWorklet()
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       if (e.repeat) return
       const note = keyMap[e.key]
       if (note !== undefined) {
-        playMidi(note);
+        noteOn(note);
         onNoteDown?.(note);
       }
     }
@@ -31,7 +31,7 @@ export default function KeyboardController({ keyMap, onNoteDown, onNoteUp }: { k
       window.removeEventListener('keydown', onDown)
       window.removeEventListener('keyup', onUp)
     }
-  }, [keyMap, playMidi, noteOff, onNoteDown, onNoteUp])
+  }, [keyMap, noteOn, noteOff, onNoteDown, onNoteUp])
 
   return null
 }

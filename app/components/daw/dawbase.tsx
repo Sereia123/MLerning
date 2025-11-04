@@ -13,7 +13,7 @@ export default function DawBase(){
 
   const keyBoardNumber = 5;//盤面のモードチェンジ
 
-  const handleClickNote = useHandleClickNote();
+  const { handleMouseDown, handleMouseUp } = useHandleClickNote();
 
   const [pressedKeys, setPressedKeys] = useState<number[]>([]);
 
@@ -41,10 +41,14 @@ export default function DawBase(){
         {/* 黒鍵 */}
         <div className="absolute top-0 left-0 z-10 h-[480px] w-[10%]">
           {keyToneBlackMap.map(([y, note], idx) => (
-            <div
+              <div
               key={idx}
               style={{ transform: `translateY(${y}px)` }} 
-              onClick={(e) => { handleClickNote(note)(e); handleNoteDown(note); setTimeout(() => handleNoteUp(note), 200); }}
+              onMouseDown={() => { handleMouseDown(note)(); handleNoteDown(note); }}
+              onMouseUp={() => { handleMouseUp(note)(); handleNoteUp(note); }}
+              onMouseLeave={() => { handleMouseUp(note)(); handleNoteUp(note); }}
+              onTouchStart={() => { handleMouseDown(note)(); handleNoteDown(note); }}
+              onTouchEnd={() => { handleMouseUp(note)(); handleNoteUp(note); }}
             >
               <BlackKey isActive={pressedKeys.includes(note)} />
             </div>

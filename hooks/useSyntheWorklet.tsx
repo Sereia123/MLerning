@@ -104,32 +104,30 @@ export default function useSyntheWorklet() {
     setRunning(false);
   }, []);
 
-  // ノートオン+デュレーションあり
-  const trigger = useCallback(async () => {
+  // ノートオン（サスティン開始、リリースは noteOff で行う）
+  const noteOn = useCallback(async (midi: number) => {
     await ensureReady();
-    if (!contextRef.current || !ampRef.current) return;
     const ac = contextRef.current;
     const amp = ampRef.current;
+    const node = nodeRef.current;
+    if (!ac || !amp || !node) return;
+
+    const f = midiToFreq(midi);
+    try {
+      node.parameters.get('frequency')?.setValueAtTime(f, ac.currentTime);
+    } catch {}
+
     const now = ac.currentTime;
-
     const A = 0.005; // Attack 5ms
-    const R = 0.05;  // Release 50ms
-
     const current = typeof amp.gain.value === 'number' ? amp.gain.value : 0;
     amp.gain.cancelScheduledValues(now);
     amp.gain.setValueAtTime(current, now);
     amp.gain.linearRampToValueAtTime(1, now + A);
-    amp.gain.setValueAtTime(1, now + A + duration);
-    amp.gain.linearRampToValueAtTime(0, now + A + duration + R);
 
-    if (ac.state === 'suspended') { 
-      try 
-      { 
-        await ac.resume(); 
-      } 
-      catch {} 
+    if (ac.state === 'suspended') {
+      try { await ac.resume(); } catch {}
     }
-  }, [ensureReady, duration]);
+  }, [ensureReady]);
 
   // ノートオフ
   const noteOff = useCallback(() => {
@@ -142,30 +140,17 @@ export default function useSyntheWorklet() {
     amp.gain.linearRampToValueAtTime(0, now + 0.03);
   }, []);
 
-  // ミディ番号で即時に音を鳴らす (周波数を書き換えてからエンベロープ)
+  // ミディ番号で短い音を鳴らす（クリック等の短いトリガ用）
   const playMidi = useCallback(async (midi: number) => {
-    await ensureReady();
+    // noteOn して、duration 後に自動で noteOff する
+    await noteOn(midi);
     const ac = contextRef.current;
-    const amp = ampRef.current;
-    const node = nodeRef.current;
-    if (!ac || !amp || !node) return;
+    if (!ac) return;
+    // duration は秒なので ms に変換
+    setTimeout(() => {
+      try { noteOff(); } catch {}
+    }, Math.max(0, duration * 1000));
+  }, [noteOn, noteOff, duration]);
 
-    const f = midiToFreq(midi);
-    try {
-      node.parameters.get('frequency')?.setValueAtTime(f, ac.currentTime);
-    } catch  {}
-
-    // エンベロープ（trigger と同じ処理）
-    const now = ac.currentTime;
-    const A = 0.005; // Attack 5ms
-    const R = 0.05;  // Release 50ms
-    const current = typeof amp.gain.value === 'number' ? amp.gain.value : 0;
-    amp.gain.cancelScheduledValues(now);
-    amp.gain.setValueAtTime(current, now);
-    amp.gain.linearRampToValueAtTime(1, now + A);
-    amp.gain.setValueAtTime(1, now + A + duration);
-    amp.gain.linearRampToValueAtTime(0, now + A + duration + R);
-  }, [ensureReady, duration]);
-
-  return { running, start, stop, freq, setFreq, gain, setGain, wave, setWave, pulseWidth, setPulseWidth, duration, setDuration, trigger, noteOff, playMidi};
+  return { running, start, stop, freq, setFreq, gain, setGain, wave, setWave, pulseWidth, setPulseWidth, duration, setDuration, noteOn, noteOff, playMidi };
   }
