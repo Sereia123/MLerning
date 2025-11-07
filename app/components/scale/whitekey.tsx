@@ -1,8 +1,14 @@
-export default function WhiteKey(){
+type KeyProps = {
+  isActive?: boolean;
+};
+
+export default function WhiteKey({ isActive }: KeyProps){
+  const base = 'h-full w-[60px] border border-black pointer-events-none';
+
+  const bg = isActive ? 'bg-[#f1cccc]' : 'bg-white';
   return (
     <>
-      <div className="h-full w-[60px] bg-white border border-black">
-      </div>
+      <div className={`${base} ${bg}`} />
     </>
   );
 }

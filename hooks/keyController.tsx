@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect } from 'react'
-import useSyntheWorklet from '@/hooks/useSyntheWorklet'
+import { useSynthe } from '@/hooks/SyntheProvider'
 
 type KeyMap = Record<string, number | undefined>
 
 export default function KeyboardController({ keyMap, onNoteDown, onNoteUp }: { keyMap: KeyMap, onNoteDown?: (midi:number)=>void, onNoteUp?: (midi:number)=>void }) {
-  const { noteOn, noteOff } = useSyntheWorklet()
+  const { noteOn, noteOff } = useSynthe()
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
@@ -20,7 +20,7 @@ export default function KeyboardController({ keyMap, onNoteDown, onNoteUp }: { k
     const onUp = (e: KeyboardEvent) => {
       const note = keyMap[e.key]
       if (note !== undefined) {
-        noteOff()
+        noteOff(note)
         onNoteUp?.(note);
       }
     }

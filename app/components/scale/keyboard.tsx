@@ -2,27 +2,68 @@
 
 import WhiteKey from "./whitekey";
 import BlackKey from "./blackkey";
-import getKeyToneWhiteMap from "@/hooks/keyToneWhiteMap";
-import useHandleClickNote from "@/hooks/useHandleClickNote";
+import getKeyToneWhiteMap from "@/hooks/scaleKeyToneWhiteMap";
+import getKeyToneBlackMap from "@/hooks/scaleKeyToneBlackMap";
 
-export default function Keyboard(){
-  const keyToneMap = getKeyToneWhiteMap(5);
+type KeyboardProps = {
+  keyBoardNumber: number;
+  activeKeys?: number[];
+  onNoteDown?: (midi: number) => void;
+  onNoteUp?: (midi: number) => void;
+  onMouseDown?: (midi: number) => (() => void);
+  onMouseUp?: (midi: number) => (() => void);
+};
 
-  const handleClickNote = useHandleClickNote();
+export default function Keyboard({ keyBoardNumber, activeKeys, onNoteDown, onNoteUp, onMouseDown, onMouseUp }: KeyboardProps) {
+  const keyToneWhiteMap = getKeyToneWhiteMap(keyBoardNumber);
+  const keyToneBlackMap = getKeyToneBlackMap(keyBoardNumber);
+
   return (
     <>
-      <div className="relative w-full h-[150px] flex">
-        {keyToneMap.map((note, idx) => (
+      <div className="relative w-full h-[180px] flex">
+        {keyToneWhiteMap.map((note, idx) => (
           <div
             key={idx}
-            onClick={handleClickNote(note)}
+            className="hover:cursor-pointer"
+            onMouseDown={() => {
+              onMouseDown?.(note)?.();
+              onNoteDown?.(note);
+            }}
+            onMouseUp={() => {
+              onMouseUp?.(note)?.();
+              onNoteUp?.(note);
+            }}
+            onMouseLeave={() => {
+              onMouseUp?.(note)?.();
+              onNoteUp?.(note);
+            }}
           >
-            <WhiteKey />
+            <WhiteKey isActive={activeKeys?.includes(note)} />
           </div>
         ))}
 
-        <div className="absolute z=10 top-0 left-0 w-full h-[200px] flex">
-          <div className="translate-x-[25px]">
+        <div className="absolute z=10 top-0 left-0 w-full h-[100px] flex">
+           {keyToneBlackMap.map(([x, note], idx) => (
+            <div
+              key={idx}
+              style={{ transform: `translateX(${x}px)` }}
+              onMouseDown={() => {
+                onMouseDown?.(note)?.();
+                onNoteDown?.(note);
+              }}
+              onMouseUp={() => {
+                onMouseUp?.(note)?.();
+                onNoteUp?.(note);
+              }}
+              onMouseLeave={() => {
+                onMouseUp?.(note)?.();
+                onNoteUp?.(note);
+              }}
+            >
+              <BlackKey isActive={activeKeys?.includes(note)} />
+            </div>
+          ))}
+          {/* <div className="translate-x-[25px]">
             <BlackKey />
           </div>
           <div className="translate-x-[35px]">
@@ -63,7 +104,7 @@ export default function Keyboard(){
           </div>
           <div className="translate-x-[355px]">
             <BlackKey />
-          </div>
+          </div> */}
         </div>
       </div>
     </>

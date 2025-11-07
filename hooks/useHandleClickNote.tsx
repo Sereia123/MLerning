@@ -1,7 +1,7 @@
-import useSyntheWorklet from "./useSyntheWorklet";
+import { useSynthe } from "@/hooks/SyntheProvider";
 
 export default function useHandleClickNote() {
-  const { noteOn, noteOff } = useSyntheWorklet();
+  const { noteOn, noteOff } = useSynthe();
 
   function handleMouseDown(f: number): () => void {
     return function () {
@@ -11,8 +11,7 @@ export default function useHandleClickNote() {
 
   function handleMouseUp(f: number): () => void {
     return function () {
-      void f;
-      noteOff();
+      noteOff(f);
     };
   }
 

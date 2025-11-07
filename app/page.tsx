@@ -1,8 +1,8 @@
 import Header from './components/header';
 import Question from './components/question';
 // import SubPage from './subpage';
-import DawBase from './components/daw/dawbase';
-// import Scale from './components/scale/scale';
+// import DawBase from './components/daw/dawbase';
+import Scale from './components/scale/scale';
 // import RhythmBase from './components/rhythm/rhythm';
 
 export default function Home() {
@@ -12,8 +12,8 @@ export default function Home() {
       <Question />
       {/* <SubPage /> */}
       {/* <RhythmBase /> */}
-      {/* <Scale /> */}
-      <DawBase />
+      <Scale />
+      {/* <DawBase /> */}
     </main>
   );
 }

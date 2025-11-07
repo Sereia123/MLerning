@@ -1,8 +1,8 @@
 'use client';
-import useSyntheWorklet from '@/hooks/useSyntheWorklet';
+import { useSynthe } from '@/hooks/SyntheProvider';
 
 export default function SubPage(){
-  const { running, start, stop, freq, setFreq, gain, setGain, wave, setWave, pulseWidth, setPulseWidth, trigger, noteOff, duration, setDuration } = useSyntheWorklet();
+  const { running, start, stop, freq, setFreq, gain, setGain, wave, setWave, pulseWidth, setPulseWidth, noteOn, noteOff, duration, setDuration, mode, setMode } = useSynthe();
 
   return (
     <>
@@ -13,6 +13,17 @@ export default function SubPage(){
       </div>
 
       <div className="space-y-4 text-white">
+        <div className="flex gap-4">
+          <label>
+            <input type="radio" name="mode" value="poly" checked={mode === 'poly'} onChange={() => setMode('poly')} />
+            Poly
+          </label>
+          <label>
+            <input type="radio" name="mode" value="mono" checked={mode === 'mono'} onChange={() => setMode('mono')} />
+            Mono
+          </label>
+        </div>
+
         <label className="block">
           <span className="text-sm">Waveform</span>
           <select value={wave} onChange={(e) => setWave(Number(e.target.value))} className="w-full border rounded p-2">
@@ -44,8 +55,8 @@ export default function SubPage(){
             onChange={(e) => setGain(Number(e.target.value))} className="w-full" />
         </label>
 
-        <button onClick={trigger}>Note On</button>
-      <button onClick={noteOff}>Note Off</button>
+        <button onMouseDown={() => noteOn(60)} onMouseUp={() => noteOff(60)}>C4</button>
+      <button onMouseDown={() => noteOn(64)} onMouseUp={() => noteOff(64)}>E4</button>
       <button onClick={stop}>Stop All</button>
 
       <input type="range" min={0.05} max={2} step={0.01}
