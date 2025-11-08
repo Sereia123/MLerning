@@ -26,6 +26,7 @@ export default function ScaleBase(){
   } = useSynthe();
 
   const [pressedKeys, setPressedKeys] = useState<number[]>([]);
+  const [isPanelVisible, setIsPanelVisible] = useState(true); // パネルの表示状態を管理
 
   // マウスイベントハンドラを生成
 
@@ -67,71 +68,83 @@ export default function ScaleBase(){
             <option value="mono">Mono</option>
           </select>
         </div>
-        {/*ついかがめん*/}
-        <div className='absolute z-10 bg-blue-800/50 w-full h-[400px] mt-[400px] p-5 rounded-lg shadow-lg grid grid-cols-2 gap-4'>
-          {/* --- フィルターコントロールUIの追加 --- */}
-          <div className="col-span-1">
-            <label htmlFor="wave-select" className="mr-2">Waveform:</label>
-            <select
-              id="wave-select"
-              value={wave}
-              onChange={(e) => setWave(Number(e.target.value))}
-              className="bg-gray-700 text-white p-2 rounded w-full"
-            >
-              <option value={1}>Sawtooth</option>
-              <option value={2}>Square</option>
-              <option value={3}>Sine</option>
-              <option value={4}>Triangle</option>
-            </select>
-          </div>
-          <div className="col-span-1">
-            <label htmlFor="gain-slider" className="mr-2">Volume: {gain.toFixed(2)}</label>
-            <input
-              type="range"
-              id="gain-slider"
-              min="0" max="1" step="0.01"
-              value={gain}
-              onChange={(e) => setGain(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
-          <div className="col-span-2">
-            <label htmlFor="filter-type-select" className="mr-2">Filter Type:</label>
-            <select
-              id="filter-type-select"
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as BiquadFilterType)}
-              className="bg-gray-700 text-white p-2 rounded"
-            >
-              <option value="lowpass">Lowpass</option>
-              <option value="highpass">Highpass</option>
-              <option value="bandpass">Bandpass</option>
-              <option value="notch">Notch</option>
-            </select>
-          </div>
-          <div className="col-span-2">
-            <label htmlFor="frequency-slider" className="mr-2">
-              Frequency: {filterFreq} Hz
-            </label>
-            <input
-              type="range"
-              id="frequency-slider"
-              min="20"
-              max="10000"
-              step="1"
-              value={filterFreq}
-              onChange={(e) => setFilterFreq(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
-          <div className="col-span-2">
-            <label htmlFor="q-slider" className="mr-2">Q: {filterQ}</label>
-            <input
-              type="range" id="q-slider" min="0.1" max="20" step="0.1"
-              value={filterQ} onChange={(e) => setFilterQ(Number(e.target.value))} className="w-full"
-            />
-          </div>
+        <div>
+          <button 
+            onClick={() => setIsPanelVisible(!isPanelVisible)}
+            className="bg-gray-700 text-white p-2 rounded w-full"
+          >
+            {isPanelVisible ? 'Hide Panel' : 'Show Panel'}
+          </button>
         </div>
+        {/*追加画面（パネル）*/}
+        {isPanelVisible && (
+          <div className='absolute z-10 bg-blue-800/50 w-full h-[400px] mt-[450px] p-5 rounded-lg shadow-lg grid grid-cols-2 gap-4'>
+            {/* --- フィルターコントロールUIの追加 --- */}
+            <div className="col-span-1">
+              <label htmlFor="wave-select" className="mr-2">Waveform:</label>
+              <select
+                id="wave-select"
+                value={wave}
+                onChange={(e) => setWave(Number(e.target.value))}
+                className="bg-gray-700 text-white p-2 rounded w-full"
+              >
+                <option value={0}>Sine</option>
+                <option value={1}>Sawtooth</option>
+                <option value={2}>Square</option>
+                <option value={3}>Triangle</option>
+                <option value={4}>Noise</option>
+              </select>
+            </div>
+            <div className="col-span-1">
+              <label htmlFor="gain-slider" className="mr-2">Volume: {gain.toFixed(2)}</label>
+              <input
+                type="range"
+                id="gain-slider"
+                min="0" max="1" step="0.01"
+                value={gain}
+                onChange={(e) => setGain(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            <div className="col-span-2">
+              <label htmlFor="filter-type-select" className="mr-2">Filter Type:</label>
+              <select
+                id="filter-type-select"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as BiquadFilterType)}
+                className="bg-gray-700 text-white p-2 rounded"
+              >
+              <option value="off">Off</option>
+                <option value="lowpass">Lowpass</option>
+                <option value="highpass">Highpass</option>
+                <option value="bandpass">Bandpass</option>
+                <option value="notch">Notch</option>
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label htmlFor="frequency-slider" className="mr-2">
+                Frequency: {filterFreq} Hz
+              </label>
+              <input
+                type="range"
+                id="frequency-slider"
+                min="20"
+                max="10000"
+                step="1"
+                value={filterFreq}
+                onChange={(e) => setFilterFreq(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+            <div className="col-span-2">
+              <label htmlFor="q-slider" className="mr-2">Q: {filterQ}</label>
+              <input
+                type="range" id="q-slider" min="0.1" max="20" step="0.1"
+                value={filterQ} onChange={(e) => setFilterQ(Number(e.target.value))} className="w-full"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       

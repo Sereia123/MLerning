@@ -24,13 +24,13 @@ export default function useSyntheWorklet() {
     const defaultNote = 60; 
     return Math.pow(2, (defaultNote - 69) / 12) * 440;
   });
-  const [gain, setGain] = useState(1.0);
+  const [gain, setGain] = useState(0.7); // 初期ボリュームを少し下げる
   const [wave, setWave] = useState(1);
   const [pulseWidth, setPulseWidth] = useState(0.5);
   const [duration, setDuration] = useState(0.5);
   const [mode, setMode] = useState<'poly' | 'mono'>('poly');
   // --- フィルター用の状態を追加 ---
-  const [filterType, setFilterType] = useState<BiquadFilterType>('lowpass');
+  const [filterType, setFilterType] = useState<BiquadFilterType | 'off'>('off');
   const [filterFreq, setFilterFreq] = useState(1000);
   const [filterQ, setFilterQ] = useState(1);
 
@@ -59,24 +59,31 @@ export default function useSyntheWorklet() {
     const voice = voicesRef.current.get(midi);
     if (!ac || !voice || !masterAmp) return Promise.resolve();
 
-    const { node: workletNode, amp } = voice;
     const now = ac.currentTime;
-    const R = 0.03; // Release
-    const current = typeof amp.gain.value === 'number' ? amp.gain.value : 0;
+    const rampTime = 0.02;
+
+    // --- 新ロジック: 先に残りのボイスのゲインを上げる ---
+    const newTargetGain = voicesRef.current.size - 1 > 0 ? 1.0 / (voicesRef.current.size - 1) : 1.0;
+    voicesRef.current.forEach((v, m) => {
+      if (m !== midi) { // これから消すボイス以外を対象
+        v.amp.gain.cancelScheduledValues(now);
+        v.amp.gain.setValueAtTime(v.amp.gain.value, now);
+        v.amp.gain.linearRampToValueAtTime(newTargetGain, now + rampTime);
+      }
+    });
+
+    const { node: workletNode, amp } = voice;
+    const R = 0.05; // Release time
     amp.gain.cancelScheduledValues(now);
-    amp.gain.setValueAtTime(current, now); // setValueAtTimeは現在の値をセットするために必要
+    amp.gain.setValueAtTime(amp.gain.value, now);
     amp.gain.linearRampToValueAtTime(0, now + R);
     
     return new Promise((resolve) => {
-      // リリースエンベロープの終了に合わせてノードを破棄する
       const dummySource = ac.createBufferSource();
       dummySource.onended = () => {
         workletNode.disconnect();
         amp.disconnect();
         voicesRef.current.delete(midi);
-        // 音が消えた後にマスターゲインを更新
-        const newMasterGain = voicesRef.current.size > 0 ? 1.0 / voicesRef.current.size : 1.0;
-        masterAmp.gain.setTargetAtTime(newMasterGain, ac.currentTime, 0.01);
         resolve();
       };
       dummySource.start(now + R);
@@ -110,26 +117,40 @@ export default function useSyntheWorklet() {
 
   //UIで操作を行ったパラメータの更新
   useEffect(() => {
-    const ac = contextRef.current;
-    if (!ac) return;
+    const masterAmp = masterAmpRef.current;
+    if (masterAmp) {
+      masterAmp.gain.setValueAtTime(gain, masterAmp.context.currentTime);
+    }
     voicesRef.current.forEach((voice) => {
-      const setP = (name: string, v: number) => voice.node.parameters.get(name)?.setValueAtTime(v, ac.currentTime);
-      setP('gain', gain);
-      setP('wave', wave);
-      setP('pulseWidth', pulseWidth);
+      voice.node.parameters.get('wave')?.setValueAtTime(wave, voice.node.context.currentTime);
+      voice.node.parameters.get('pulseWidth')?.setValueAtTime(pulseWidth, voice.node.context.currentTime);
     });
-  }, [freq, gain, wave, pulseWidth]);
+  }, [gain, wave, pulseWidth]);
 
   // フィルターのパラメータが変更されたらAudioNodeに反映
   useEffect(() => {
-    const filterNode = filterNodeRef.current;
     const ac = contextRef.current;
-    if (!filterNode || !ac) return;
+    const filterNode = filterNodeRef.current;
+    const masterAmp = masterAmpRef.current;
+    if (!ac || !filterNode || !masterAmp) return;
 
-    filterNode.type = filterType;
-    // setValueAtTimeを使用して即時変更
-    filterNode.frequency.setValueAtTime(filterFreq, ac.currentTime);
-    filterNode.Q.setValueAtTime(filterQ, ac.currentTime);
+    if (filterType === 'off') {
+      // フィルターがオフの場合、すべてのボイスをフィルターから切断し、マスターゲインに直接接続する
+      voicesRef.current.forEach(voice => {
+        voice.amp.disconnect();
+        voice.amp.connect(masterAmp);
+      });
+    } else {
+      // フィルターがオンの場合、パラメータを設定し、すべてのボイスをフィルターに接続する
+      filterNode.type = filterType;
+      filterNode.frequency.setValueAtTime(filterFreq, ac.currentTime);
+      filterNode.Q.setValueAtTime(filterQ, ac.currentTime);
+
+      voicesRef.current.forEach(voice => {
+        voice.amp.disconnect();
+        voice.amp.connect(filterNode);
+      });
+    }
   }, [filterType, filterFreq, filterQ]);
 
   // アンマウント時に停止
@@ -141,8 +162,11 @@ export default function useSyntheWorklet() {
   const noteOn = useCallback(async (midi: number) => {
     await ensureReady();
     const ac = contextRef.current;
-    const filterNode = filterNodeRef.current; // マスターゲインの代わりにフィルターノードを取得
-    if (!ac || !filterNode) return;
+    const filterNode = filterNodeRef.current;
+    const masterAmp = masterAmpRef.current;
+    if (!ac || !filterNode || !masterAmp) return;
+
+    const targetNode = filterType === 'off' ? masterAmp : filterNode;
 
     // --- Mono Mode Logic ---
     if (mode === 'mono') {
@@ -152,10 +176,8 @@ export default function useSyntheWorklet() {
       if (currentVoice) {
         // 既存ボイスの周波数を変更して再トリガー
         const f = midiToFreq(midi);
+        // --- レガート処理: ゲインは変更せず、周波数のみを更新 ---
         currentVoice.node.parameters.get('frequency')?.setValueAtTime(f, ac.currentTime);
-        currentVoice.amp.gain.cancelScheduledValues(ac.currentTime);
-        currentVoice.amp.gain.setValueAtTime(currentVoice.amp.gain.value, ac.currentTime);
-        currentVoice.amp.gain.linearRampToValueAtTime(1, ac.currentTime + 0.01);
         // 新しいMIDIノートでボイスを再登録
         voicesRef.current.delete(currentMidi);
         voicesRef.current.set(midi, currentVoice);
@@ -166,47 +188,58 @@ export default function useSyntheWorklet() {
     // 同じMIDIノートが既に鳴っていたら、一度止めてから鳴らし直す（リトリガー）
     const now = ac.currentTime;
     const existingVoice = voicesRef.current.get(midi);
+    const rampTime = 0.02;
     if (existingVoice) {
       // 既存ボイスがあれば、周波数を変更してアタックを再トリガーする
       const f = midiToFreq(midi);
       existingVoice.node.parameters.get('frequency')?.setValueAtTime(f, now);
       existingVoice.amp.gain.cancelScheduledValues(now);
-      existingVoice.amp.gain.setValueAtTime(existingVoice.amp.gain.value, now);
-      existingVoice.amp.gain.linearRampToValueAtTime(1, now + 0.01);
+      existingVoice.amp.gain.setValueAtTime(0, now); // 一瞬0にしてから立ち上げる
+      existingVoice.amp.gain.setTargetAtTime(1, now, 0.02 / 4); // 指数関数的な立ち上がりに変更
       return; // 新しいボイスは作らずに終了
     }
 
-    // マスターゲインを先に調整する
+    // --- 新ロジック: マスターゲインは固定し、各ボイスのゲインを調整 ---
     const voiceCount = voicesRef.current.size + 1;
-    const masterAmp = masterAmpRef.current;
-    const newMasterGain = 1.0 / voiceCount;
-    masterAmp?.gain.setTargetAtTime(newMasterGain, now, 0.01);
+    const newTargetGain = 1.0 / voiceCount;
+
+    // --- 新ロジック: 先に既存ボイスのゲインを下げる ---
+    voicesRef.current.forEach(voice => {
+      voice.amp.gain.cancelScheduledValues(now);
+      voice.amp.gain.setValueAtTime(voice.amp.gain.value, now);
+      voice.amp.gain.linearRampToValueAtTime(newTargetGain, now + rampTime);
+    });
 
     const f = midiToFreq(midi);
 
     // 新しいボイスを作成
     const amp = new GainNode(ac, { gain: 0 });
-    amp.connect(filterNode); // 各ボイスの出力をマスターゲインではなくフィルターに接続
+    amp.connect(targetNode); // フィルターがオンならフィルターへ、オフならマスターゲインへ接続
     const node = new AudioWorkletNode(ac, 'processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       outputChannelCount: [2],
-      parameterData: { frequency: f, gain: gain, wave: wave, pulseWidth: pulseWidth },
+      parameterData: { frequency: f, wave: wave, pulseWidth: pulseWidth }, // gainを削除
     });
     node.connect(amp);
 
+    // --- クリックノイズ対策の最終手段 ---
+    // parameterDataの適用が遅れるケースを想定し、生成直後にパラメータを明示的に再設定する
+    node.parameters.get('frequency')?.setValueAtTime(f, now);
+    node.parameters.get('wave')?.setValueAtTime(wave, now);
+    node.parameters.get('pulseWidth')?.setValueAtTime(pulseWidth, now);
+
     voicesRef.current.set(midi, { node, amp });
 
-    const A = 0.01; // Attack
-    const current = typeof amp.gain.value === 'number' ? amp.gain.value : 0;
+    const A = 0.02; // Attack time
     amp.gain.cancelScheduledValues(now);
-    amp.gain.setValueAtTime(current, now);
-    amp.gain.linearRampToValueAtTime(1, now + A);
+    amp.gain.setValueAtTime(0, now);
+    amp.gain.linearRampToValueAtTime(newTargetGain, now + A);
 
     if (ac.state === 'suspended') {
       try { await ac.resume(); } catch {}
     }
-  }, [ensureReady, gain, wave, pulseWidth, mode]); // masterAmpRefはRefなので依存配列に不要
+  }, [ensureReady, wave, pulseWidth, mode, filterType]); // gainを依存配列から削除
 
 
   // ミディ番号で短い音を鳴らす（クリック等の短いトリガ用）
