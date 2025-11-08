@@ -38,7 +38,7 @@
     ".next\\dev/types/**/*.ts",
     ".next\\dev/types/**/*.ts",
     "global.d.ts"
-, "public/worklets/processor.js"  ],
+, "public/worklets/processor.js", "app/components/scale/scale.tsx"  ],
   "exclude": [
     "node_modules"
   ]

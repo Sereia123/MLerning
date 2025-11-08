@@ -12,6 +12,7 @@ export default function useSyntheWorklet() {
   //AudioContextはスタジオ
   const contextRef = useRef<AudioContext | null>(null);
   // マスターゲイン
+  const filterNodeRef = useRef<BiquadFilterNode | null>(null);
   const masterAmpRef = useRef<GainNode | null>(null);
   // 鳴っているボイスを管理するMap。キーはMIDIノート番号
   const voicesRef = useRef<Map<number, Voice>>(new Map());
@@ -28,6 +29,10 @@ export default function useSyntheWorklet() {
   const [pulseWidth, setPulseWidth] = useState(0.5);
   const [duration, setDuration] = useState(0.5);
   const [mode, setMode] = useState<'poly' | 'mono'>('poly');
+  // --- フィルター用の状態を追加 ---
+  const [filterType, setFilterType] = useState<BiquadFilterType>('lowpass');
+  const [filterFreq, setFilterFreq] = useState(1000);
+  const [filterQ, setFilterQ] = useState(1);
 
   // こまごまとした設定
   const ensureReady = useCallback(async () => {
@@ -35,8 +40,11 @@ export default function useSyntheWorklet() {
     if (!isInitializedRef.current) {
       const AudioContextClass = getAudioContextConst();
       const ac = new AudioContextClass({ latencyHint: 'interactive' });
+      const filterNode = ac.createBiquadFilter();
       const masterAmp = new GainNode(ac, { gain: 1.0 });
+      filterNode.connect(masterAmp);
       masterAmp.connect(ac.destination);
+      filterNodeRef.current = filterNode;
       contextRef.current = ac;
       masterAmpRef.current = masterAmp;
       isInitializedRef.current = true;
@@ -112,6 +120,18 @@ export default function useSyntheWorklet() {
     });
   }, [freq, gain, wave, pulseWidth]);
 
+  // フィルターのパラメータが変更されたらAudioNodeに反映
+  useEffect(() => {
+    const filterNode = filterNodeRef.current;
+    const ac = contextRef.current;
+    if (!filterNode || !ac) return;
+
+    filterNode.type = filterType;
+    // setValueAtTimeを使用して即時変更
+    filterNode.frequency.setValueAtTime(filterFreq, ac.currentTime);
+    filterNode.Q.setValueAtTime(filterQ, ac.currentTime);
+  }, [filterType, filterFreq, filterQ]);
+
   // アンマウント時に停止
   useEffect(() => () => {
     stop();
@@ -121,8 +141,8 @@ export default function useSyntheWorklet() {
   const noteOn = useCallback(async (midi: number) => {
     await ensureReady();
     const ac = contextRef.current;
-    const masterAmp = masterAmpRef.current;
-    if (!ac || !masterAmp) return;
+    const filterNode = filterNodeRef.current; // マスターゲインの代わりにフィルターノードを取得
+    if (!ac || !filterNode) return;
 
     // --- Mono Mode Logic ---
     if (mode === 'mono') {
@@ -158,14 +178,15 @@ export default function useSyntheWorklet() {
 
     // マスターゲインを先に調整する
     const voiceCount = voicesRef.current.size + 1;
+    const masterAmp = masterAmpRef.current;
     const newMasterGain = 1.0 / voiceCount;
-    masterAmp.gain.setTargetAtTime(newMasterGain, now, 0.01);
+    masterAmp?.gain.setTargetAtTime(newMasterGain, now, 0.01);
 
     const f = midiToFreq(midi);
 
     // 新しいボイスを作成
     const amp = new GainNode(ac, { gain: 0 });
-    amp.connect(masterAmp);
+    amp.connect(filterNode); // 各ボイスの出力をマスターゲインではなくフィルターに接続
     const node = new AudioWorkletNode(ac, 'processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
@@ -185,7 +206,7 @@ export default function useSyntheWorklet() {
     if (ac.state === 'suspended') {
       try { await ac.resume(); } catch {}
     }
-  }, [ensureReady, gain, wave, pulseWidth, mode]);
+  }, [ensureReady, gain, wave, pulseWidth, mode]); // masterAmpRefはRefなので依存配列に不要
 
 
   // ミディ番号で短い音を鳴らす（クリック等の短いトリガ用）
@@ -196,5 +217,22 @@ export default function useSyntheWorklet() {
     }, Math.max(0, duration * 1000));
   }, [noteOn, noteOff, duration]);
 
-  return { running, start, stop, freq, setFreq, gain, setGain, wave, setWave, pulseWidth, setPulseWidth, duration, setDuration, noteOn, noteOff, playMidi, mode, setMode };
+  return { 
+    running, 
+    start, 
+    stop, 
+    freq, setFreq, 
+    gain, setGain, 
+    wave, setWave, 
+    pulseWidth, setPulseWidth, 
+    duration, setDuration, 
+    noteOn, 
+    noteOff, 
+    playMidi, 
+    mode, setMode,
+    // --- フィルター用の状態とセッターをエクスポート ---
+    filterType, setFilterType,
+    filterFreq, setFilterFreq,
+    filterQ, setFilterQ
+  };
 }

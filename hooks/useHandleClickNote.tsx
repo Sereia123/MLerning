@@ -1,5 +1,7 @@
 import { useSynthe } from "@/hooks/SyntheProvider";
 
+type NoteFunction = (midi: number) => void;
+
 export default function useHandleClickNote() {
   const { noteOn, noteOff } = useSynthe();
 

@@ -25,18 +25,17 @@ export default function Keyboard({ keyBoardNumber, activeKeys, onNoteDown, onNot
           <div
             key={idx}
             className="hover:cursor-pointer"
-            onMouseDown={() => {
-              onMouseDown?.(note)?.();
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              onMouseDown?.(note)();
               onNoteDown?.(note);
             }}
-            onMouseUp={() => {
-              onMouseUp?.(note)?.();
+            onMouseUp={(e) => {
+              e.stopPropagation();
+              onMouseUp?.(note)();
               onNoteUp?.(note);
             }}
-            onMouseLeave={() => {
-              onMouseUp?.(note)?.();
-              onNoteUp?.(note);
-            }}
+            onMouseLeave={(e) => { e.stopPropagation(); onMouseUp?.(note)(); onNoteUp?.(note);}}
           >
             <WhiteKey isActive={activeKeys?.includes(note)} />
           </div>
@@ -47,64 +46,21 @@ export default function Keyboard({ keyBoardNumber, activeKeys, onNoteDown, onNot
             <div
               key={idx}
               style={{ transform: `translateX(${x}px)` }}
-              onMouseDown={() => {
-                onMouseDown?.(note)?.();
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onMouseDown?.(note)();
                 onNoteDown?.(note);
               }}
-              onMouseUp={() => {
-                onMouseUp?.(note)?.();
+              onMouseUp={(e) => {
+                e.stopPropagation();
+                onMouseUp?.(note)();
                 onNoteUp?.(note);
               }}
-              onMouseLeave={() => {
-                onMouseUp?.(note)?.();
-                onNoteUp?.(note);
-              }}
+              onMouseLeave={(e) => { e.stopPropagation(); onMouseUp?.(note)(); onNoteUp?.(note);}}
             >
               <BlackKey isActive={activeKeys?.includes(note)} />
             </div>
           ))}
-          {/* <div className="translate-x-[25px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[35px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[85px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[95px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[105px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[155px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[165px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[215px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[225px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[235px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[285px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[295px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[345px]">
-            <BlackKey />
-          </div>
-          <div className="translate-x-[355px]">
-            <BlackKey />
-          </div> */}
         </div>
       </div>
     </>

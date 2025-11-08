@@ -2,7 +2,7 @@
 
 import useSyntheWorklet from './useSyntheWorklet';
 import { createContext, useContext, ReactNode } from 'react';
-
+ 
 // useSyntheWorkletフックの戻り値の型を定義
 type SyntheContextType = ReturnType<typeof useSyntheWorklet>;
 
