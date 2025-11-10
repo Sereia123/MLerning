@@ -14,6 +14,7 @@ export default function useSyntheWorklet() {
   // マスターゲイン
   const filterNodeRef = useRef<BiquadFilterNode | null>(null);
   const masterAmpRef = useRef<GainNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   // 鳴っているボイスを管理するMap。キーはMIDIノート番号
   const voicesRef = useRef<Map<number, Voice>>(new Map());
   // 初期化済みフラグ
@@ -47,12 +48,17 @@ export default function useSyntheWorklet() {
       const AudioContextClass = getAudioContextConst();
       const ac = new AudioContextClass({ latencyHint: 'interactive' });
       const filterNode = ac.createBiquadFilter();
+      const analyser = ac.createAnalyser();
       const masterAmp = new GainNode(ac, { gain: 1.0 });
+
       filterNode.connect(masterAmp);
-      masterAmp.connect(ac.destination);
+      masterAmp.connect(analyser);
+      analyser.connect(ac.destination);
+
       filterNodeRef.current = filterNode;
       contextRef.current = ac;
       masterAmpRef.current = masterAmp;
+      analyserRef.current = analyser;
       isInitializedRef.current = true;
       await loadWorkletModule(ac, '/worklets/processor.js');
       workletLoadedRef.current = true;
@@ -286,6 +292,7 @@ export default function useSyntheWorklet() {
     attack, setAttack,
     decay, setDecay,
     sustain, setSustain,
-    release, setRelease
+    release, setRelease,
+    analyserRef
   };
 }

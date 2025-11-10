@@ -6,6 +6,7 @@ import useHandleClickNote from "@/hooks/useHandleClickNote";
 import KeyboardController from '@/hooks/keyController';
 import KeyMap from '@/hooks/keyMap';
 import { useSynthe } from '@/hooks/SyntheProvider';
+import SpectrumCanvas from '@/hooks/SpectrumCanvas';
 
 export default function Scale(){
   const [keyBoardNumber, setKeyBoardNumber] = useState(5); //盤面のモードチェンジ
@@ -31,6 +32,7 @@ export default function Scale(){
     setSustain,
     release,
     setRelease,
+    analyserRef,
   } = useSynthe();
 
   const [pressedKeys, setPressedKeys] = useState<number[]>([]);
@@ -44,6 +46,22 @@ export default function Scale(){
 
   const handleNoteUp = (midi: number) => {
     setPressedKeys((prev) => prev.filter((n) => n !== midi));
+  };
+
+  // 対数スケール変換のための定数
+  const minLogFreq = Math.log(20);
+  const maxLogFreq = Math.log(20000);
+  // スライダーの値 (0-100) を対数周波数に変換
+  const handleLogSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sliderValue = parseFloat(e.target.value);
+    const scale = (maxLogFreq - minLogFreq) / 100;
+    const newFreq = Math.exp(minLogFreq + scale * sliderValue);
+    setFilterFreq(Math.round(newFreq));
+  };
+  // 現在の周波数をスライダーの値 (0-100) に変換
+  const freqToSliderValue = () => {
+    const scale = (maxLogFreq - minLogFreq) / 100;
+    return (Math.log(filterFreq) - minLogFreq) / scale;
   };
 
   return (
@@ -86,10 +104,10 @@ export default function Scale(){
         </div>
         {/*追加画面（パネル）*/}
         {isPanelVisible && (
-          <div className='absolute z-10 bg-blue-800/50 w-full mt-[100px] p-5 rounded-lg shadow-lg grid grid-cols-2 gap-4'>
+          <div className='absolute z-10 bg-blue-800/50 w-full mt-[500px] p-5 rounded-lg shadow-lg grid grid-cols-2 gap-4'>
             {/* --- フィルターコントロールUIの追加 --- */}
             <div className="col-span-1">
-              <label htmlFor="wave-select" className="mr-2">Waveform:</label>
+              <label htmlFor="wave-select" className="mr-2">Spectrum:</label>
               <select
                 id="wave-select"
                 value={wave}
@@ -131,16 +149,16 @@ export default function Scale(){
             </div>
             <div className="col-span-2">
               <label htmlFor="frequency-slider" className="mr-2">
-                Frequency: {filterFreq} Hz
+                Frequency: {filterFreq.toFixed(0)} Hz
               </label>
               <input
                 type="range"
                 id="frequency-slider"
-                min="20"
-                max="10000"
-                step="1"
-                value={filterFreq}
-                onChange={(e) => setFilterFreq(Number(e.target.value))}
+                min="0"
+                max="100"
+                step="0.1"
+                value={freqToSliderValue()}
+                onChange={handleLogSliderChange}
                 className="w-full"
               />
             </div>
@@ -187,22 +205,23 @@ export default function Scale(){
         )}
       </div>
 
-      
-
-      <div className="mx-auto flex items-center h-[300px] w-[720px]">
+      <div className="mx-auto w-[720px] flex flex-col items-center gap-4">
         <KeyboardController 
           keyMap={KeyMap(keyBoardNumber)}
           onNoteDown={handleNoteDown} 
           onNoteUp={handleNoteUp} 
         />
-        <Keyboard 
-          keyBoardNumber={keyBoardNumber}
-          activeKeys={pressedKeys}
-          onNoteDown={handleNoteDown}
-          onNoteUp={handleNoteUp}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-        />
+        <div className="h-[200px] w-full">
+          <Keyboard 
+            keyBoardNumber={keyBoardNumber}
+            activeKeys={pressedKeys}
+            onNoteDown={handleNoteDown}
+            onNoteUp={handleNoteUp}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+          />
+        </div>
+        <SpectrumCanvas analyserRef={analyserRef} width={720} height={120} />
       </div>
     </>
   );
