@@ -7,7 +7,7 @@ import KeyboardController from '@/hooks/keyController';
 import KeyMap from '@/hooks/keyMap';
 import { useSynthe } from '@/hooks/SyntheProvider';
 
-export default function ScaleBase(){
+export default function Scale(){
   const [keyBoardNumber, setKeyBoardNumber] = useState(5); //盤面のモードチェンジ
   const { handleMouseDown, handleMouseUp } = useHandleClickNote();
   const {
@@ -23,6 +23,14 @@ export default function ScaleBase(){
     setGain,
     wave,
     setWave,
+    attack,
+    setAttack,
+    decay,
+    setDecay,
+    sustain,
+    setSustain,
+    release,
+    setRelease,
   } = useSynthe();
 
   const [pressedKeys, setPressedKeys] = useState<number[]>([]);
@@ -78,7 +86,7 @@ export default function ScaleBase(){
         </div>
         {/*追加画面（パネル）*/}
         {isPanelVisible && (
-          <div className='absolute z-10 bg-blue-800/50 w-full h-[400px] mt-[450px] p-5 rounded-lg shadow-lg grid grid-cols-2 gap-4'>
+          <div className='absolute z-10 bg-blue-800/50 w-full mt-[100px] p-5 rounded-lg shadow-lg grid grid-cols-2 gap-4'>
             {/* --- フィルターコントロールUIの追加 --- */}
             <div className="col-span-1">
               <label htmlFor="wave-select" className="mr-2">Waveform:</label>
@@ -141,6 +149,38 @@ export default function ScaleBase(){
               <input
                 type="range" id="q-slider" min="0.1" max="20" step="0.1"
                 value={filterQ} onChange={(e) => setFilterQ(Number(e.target.value))} className="w-full"
+              />
+            </div>
+            {/* --- ADSR Envelope Controls --- */}
+            <div className="col-span-2 border-t border-blue-400 pt-4">
+              <h4 className="text-lg font-semibold mb-2">Amp Envelope</h4>
+            </div>
+            <div className="col-span-1">
+              <label htmlFor="attack-slider" className="mr-2">Attack: {attack.toFixed(2)}s</label>
+              <input
+                type="range" id="attack-slider" min="0.01" max="2" step="0.01"
+                value={attack} onChange={(e) => setAttack(Number(e.target.value))} className="w-full"
+              />
+            </div>
+            <div className="col-span-1">
+              <label htmlFor="decay-slider" className="mr-2">Decay: {decay.toFixed(2)}s</label>
+              <input
+                type="range" id="decay-slider" min="0.01" max="2" step="0.01"
+                value={decay} onChange={(e) => setDecay(Number(e.target.value))} className="w-full"
+              />
+            </div>
+            <div className="col-span-1">
+              <label htmlFor="sustain-slider" className="mr-2">Sustain: {sustain.toFixed(2)}</label>
+              <input
+                type="range" id="sustain-slider" min="0" max="1" step="0.01"
+                value={sustain} onChange={(e) => setSustain(Number(e.target.value))} className="w-full"
+              />
+            </div>
+            <div className="col-span-1">
+              <label htmlFor="release-slider" className="mr-2">Release: {release.toFixed(2)}s</label>
+              <input
+                type="range" id="release-slider" min="0.01" max="2" step="0.01"
+                value={release} onChange={(e) => setRelease(Number(e.target.value))} className="w-full"
               />
             </div>
           </div>

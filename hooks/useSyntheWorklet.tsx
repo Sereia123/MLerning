@@ -18,6 +18,7 @@ export default function useSyntheWorklet() {
   const voicesRef = useRef<Map<number, Voice>>(new Map());
   // 初期化済みフラグ
   const isInitializedRef = useRef(false);
+  const workletLoadedRef = useRef(false);
 
   const [running, setRunning] = useState(false);
   const [freq, setFreq] = useState(() => {
@@ -33,6 +34,11 @@ export default function useSyntheWorklet() {
   const [filterType, setFilterType] = useState<BiquadFilterType | 'off'>('off');
   const [filterFreq, setFilterFreq] = useState(1000);
   const [filterQ, setFilterQ] = useState(1);
+  // --- ADSRエンベロープ用の状態を追加 ---
+  const [attack, setAttack] = useState(0.02);
+  const [decay, setDecay] = useState(0.1);
+  const [sustain, setSustain] = useState(0.8);
+  const [release, setRelease] = useState(0.05);
 
   // こまごまとした設定
   const ensureReady = useCallback(async () => {
@@ -49,6 +55,7 @@ export default function useSyntheWorklet() {
       masterAmpRef.current = masterAmp;
       isInitializedRef.current = true;
       await loadWorkletModule(ac, '/worklets/processor.js');
+      workletLoadedRef.current = true;
       setRunning(true);
     }
   }, []);
@@ -73,11 +80,10 @@ export default function useSyntheWorklet() {
     });
 
     const { node: workletNode, amp } = voice;
-    const R = 0.05; // Release time
     amp.gain.cancelScheduledValues(now);
     amp.gain.setValueAtTime(amp.gain.value, now);
-    amp.gain.linearRampToValueAtTime(0, now + R);
-    
+    amp.gain.linearRampToValueAtTime(0, now + release);
+
     return new Promise((resolve) => {
       const dummySource = ac.createBufferSource();
       dummySource.onended = () => {
@@ -86,10 +92,10 @@ export default function useSyntheWorklet() {
         voicesRef.current.delete(midi);
         resolve();
       };
-      dummySource.start(now + R);
-      dummySource.stop(now + R);
+      dummySource.start(now + release);
+      dummySource.stop(now + release);
     });
-  }, []);
+  }, [release]);
 
   // スタートボタン
   const start = useCallback(async () => {
@@ -162,9 +168,9 @@ export default function useSyntheWorklet() {
   const noteOn = useCallback(async (midi: number) => {
     await ensureReady();
     const ac = contextRef.current;
-    const filterNode = filterNodeRef.current;
+    const filterNode = filterNodeRef.current; // filterNode is used
     const masterAmp = masterAmpRef.current;
-    if (!ac || !filterNode || !masterAmp) return;
+    if (!ac || !masterAmp || !filterNode || !workletLoadedRef.current) return;
 
     const targetNode = filterType === 'off' ? masterAmp : filterNode;
 
@@ -212,6 +218,9 @@ export default function useSyntheWorklet() {
 
     const f = midiToFreq(midi);
 
+    // Workletがロードされていない場合はここで処理を中断
+    if (!workletLoadedRef.current) return;
+
     // 新しいボイスを作成
     const amp = new GainNode(ac, { gain: 0 });
     amp.connect(targetNode); // フィルターがオンならフィルターへ、オフならマスターゲインへ接続
@@ -231,15 +240,21 @@ export default function useSyntheWorklet() {
 
     voicesRef.current.set(midi, { node, amp });
 
-    const A = 0.02; // Attack time
+    // ADSRエンベロープを適用
+    const peakGain = newTargetGain;
+    const sustainGain = peakGain * sustain;
+
     amp.gain.cancelScheduledValues(now);
     amp.gain.setValueAtTime(0, now);
-    amp.gain.linearRampToValueAtTime(newTargetGain, now + A);
+    // Attack
+    amp.gain.linearRampToValueAtTime(peakGain, now + attack);
+    // Decay to Sustain
+    amp.gain.setTargetAtTime(sustainGain, now + attack, decay / 4); // decayを時定数として使う
 
     if (ac.state === 'suspended') {
       try { await ac.resume(); } catch {}
     }
-  }, [ensureReady, wave, pulseWidth, mode, filterType]); // gainを依存配列から削除
+  }, [ensureReady, wave, pulseWidth, mode, filterType, attack, decay, sustain]); // gainを依存配列から削除
 
 
   // ミディ番号で短い音を鳴らす（クリック等の短いトリガ用）
@@ -266,6 +281,11 @@ export default function useSyntheWorklet() {
     // --- フィルター用の状態とセッターをエクスポート ---
     filterType, setFilterType,
     filterFreq, setFilterFreq,
-    filterQ, setFilterQ
+    filterQ, setFilterQ,
+    // --- ADSR用の状態とセッターをエクスポート ---
+    attack, setAttack,
+    decay, setDecay,
+    sustain, setSustain,
+    release, setRelease
   };
 }
