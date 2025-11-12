@@ -293,6 +293,6 @@ export default function useSyntheWorklet() {
     decay, setDecay,
     sustain, setSustain,
     release, setRelease,
-    analyserRef
+    analyserRef,
   };
 }
