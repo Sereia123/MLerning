@@ -1,8 +1,8 @@
 'use client';
 
 import WhiteKey from "./whitekey";
-import getKeyToneWhiteMap from "@/hooks/keyToneWhiteMap";
-import useHandleClickNote from "@/hooks/useHandleClickNote";
+import getKeyToneWhiteMap from "@/logic/keyToneWhiteMap";
+import useHandleClickNote from "@/logic/useHandleClickNote";
 
 type KeyboardProps = {
   keyBoardNumber: number;

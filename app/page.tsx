@@ -10,7 +10,7 @@ export default function Home() {
     <main className="min-h-screen bg-gray-900">
       <Header />
       <Question />
-      {/* <SubPage /> */}
+      {/* <SubPage /> */} 
       {/* <RhythmBase /> */}
       <Scale />
       {/* <DawBase /> */}

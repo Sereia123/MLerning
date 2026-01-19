@@ -1,5 +1,5 @@
-import getKeyToneBlackMap from '@/hooks/keyToneBlackMap';
-import getKeyToneWhiteMap from '@/hooks/keyToneWhiteMap';
+import getKeyToneBlackMap from '@/logic/keyToneBlackMap';
+import getKeyToneWhiteMap from '@/logic/keyToneWhiteMap';
 
 type KeyMap = Record<string, number | undefined>;
 

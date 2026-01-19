@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAudioContextConst, loadWorkletModule } from '@/lib/audio';
-import midiToFreq from '@/hooks/midiToFreq';
+import midiToFreq from '@/logic/midiToFreq';
 
 interface Voice {
   node: AudioWorkletNode;
@@ -9,16 +9,16 @@ interface Voice {
 }
 
 export default function useSyntheWorklet() {
-  //AudioContextはスタジオ
+  //AudioContextはスタジオ、AudioContextを格納する箱(+箱に入るものを指定)を作る、下も同様
   const contextRef = useRef<AudioContext | null>(null);
-  // マスターゲイン
   const filterNodeRef = useRef<BiquadFilterNode | null>(null);
   const masterAmpRef = useRef<GainNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   // 鳴っているボイスを管理するMap。キーはMIDIノート番号
   const voicesRef = useRef<Map<number, Voice>>(new Map());
-  // 初期化済みフラグ
+  // 上の箱において初期化済みかどうかを判断
   const isInitializedRef = useRef(false);
+
   const workletLoadedRef = useRef(false);
 
   const [running, setRunning] = useState(false);
@@ -26,87 +26,110 @@ export default function useSyntheWorklet() {
     const defaultNote = 60; 
     return Math.pow(2, (defaultNote - 69) / 12) * 440;
   });
-  const [gain, setGain] = useState(0.7); // 初期ボリュームを少し下げる
+  const [gain, setGain] = useState(0.7); 
   const [wave, setWave] = useState(1);
   const [pulseWidth, setPulseWidth] = useState(0.5);
   const [duration, setDuration] = useState(0.5);
   const [mode, setMode] = useState<'poly' | 'mono'>('poly');
-  // --- フィルター用の状態を追加 ---
+  // フィルター用の状態を追加
   const [filterType, setFilterType] = useState<BiquadFilterType | 'off'>('off');
   const [filterFreq, setFilterFreq] = useState(1000);
   const [filterQ, setFilterQ] = useState(1);
-  // --- ADSRエンベロープ用の状態を追加 ---
+  // ADSRエンベロープ用の状態を追加 
   const [attack, setAttack] = useState(0.02);
   const [decay, setDecay] = useState(0.1);
   const [sustain, setSustain] = useState(0.8);
   const [release, setRelease] = useState(0.05);
 
-  // こまごまとした設定
+  // こまごまとした初期設定
   const ensureReady = useCallback(async () => {
-    // 初回呼び出し時に AudioContext と GainNode を作成する（ユーザー操作内で呼ぶことで許可される）
+    // 初回呼び出し時に AudioContext と GainNode を作成
     if (!isInitializedRef.current) {
-      const AudioContextClass = getAudioContextConst();
-      const ac = new AudioContextClass({ latencyHint: 'interactive' });
+      const AudioContext = getAudioContextConst();
+      const ac = new AudioContext({ latencyHint: 'interactive' });
       const filterNode = ac.createBiquadFilter();
       const analyser = ac.createAnalyser();
+      // const masterAmp = ac.createGain();
+      // masterAmp.gain.value = 1.0;のあたらいい書き方
       const masterAmp = new GainNode(ac, { gain: 1.0 });
 
+      //ノードを繋げる
       filterNode.connect(masterAmp);
       masterAmp.connect(analyser);
       analyser.connect(ac.destination);
 
+      //箱に入れる
       filterNodeRef.current = filterNode;
       contextRef.current = ac;
       masterAmpRef.current = masterAmp;
       analyserRef.current = analyser;
       isInitializedRef.current = true;
+      // AudioContextにデジタル信号処理をロード
+      // awaitでloadされるまでまつ
       await loadWorkletModule(ac, '/worklets/processor.js');
-      workletLoadedRef.current = true;
+      workletLoadedRef.current = true; //processorが入った処理
       setRunning(true);
     }
   }, []);
 
+  //Promiseで非同期処理を実現
   const noteOff = useCallback((midi: number): Promise<void> => {
     const ac = contextRef.current;
     const masterAmp = masterAmpRef.current;
+    // 一音一音のゲイン、マスターアンプに接続する前
     const voice = voicesRef.current.get(midi);
+    // Promise.resolveで成功を返す
     if (!ac || !voice || !masterAmp) return Promise.resolve();
 
     const now = ac.currentTime;
+    // 新しいボリュームにどれだけの時間で移行させるか
     const rampTime = 0.02;
 
-    // --- 新ロジック: 先に残りのボイスのゲインを上げる ---
-    const newTargetGain = voicesRef.current.size - 1 > 0 ? 1.0 / (voicesRef.current.size - 1) : 1.0;
-    voicesRef.current.forEach((v, m) => {
+    // 全体音の音量バランスを保つためのゲイン再調整処理
+    // current.size = 今出ているボイスの数
+    const newGain = voicesRef.current.size - 1 > 0 ? 1.0 / (voicesRef.current.size - 1) : 1.0;
+    voicesRef.current.forEach((v, m) => { // v = value, m = key
       if (m !== midi) { // これから消すボイス以外を対象
+        // ADSRの設定をクリア
         v.amp.gain.cancelScheduledValues(now);
+        // 現在のゲイン値からプログラムを開始
         v.amp.gain.setValueAtTime(v.amp.gain.value, now);
-        v.amp.gain.linearRampToValueAtTime(newTargetGain, now + rampTime);
+        // rampTimeの時間で新しい音量に変更
+        v.amp.gain.linearRampToValueAtTime(newGain, now + rampTime);
       }
     });
 
+    // OFFにする音を徐々にフェードアウト
+    // workletNode(音源), amp(音量)
     const { node: workletNode, amp } = voice;
+    //ゲイン処理のクリア
     amp.gain.cancelScheduledValues(now);
+    //今の音量からリリース開始
     amp.gain.setValueAtTime(amp.gain.value, now);
+    // release値で滑らかに下げる
     amp.gain.linearRampToValueAtTime(0, now + release);
 
     return new Promise((resolve) => {
-      const dummySource = ac.createBufferSource();
-      dummySource.onended = () => {
+      // リリースが終わるタイマー
+      const releaseTimer = ac.createBufferSource();
+      // stop時間をonendedで検知、stopが設定されたら発火
+      releaseTimer.onended = () => {
         workletNode.disconnect();
         amp.disconnect();
         voicesRef.current.delete(midi);
         resolve();
       };
-      dummySource.start(now + release);
-      dummySource.stop(now + release);
+      // startとstopを同タイミングにすることでその時間にonendedを発火
+      releaseTimer.start(now + release);
+      releaseTimer.stop(now + release);
     });
   }, [release]);
 
-  // スタートボタン
+  // スタート
   const start = useCallback(async () => {
     await ensureReady();
     const ac = contextRef.current;
+    // acの状態が停止なら再開
     if (ac && ac.state === 'suspended') {
       try { await ac.resume(); } catch {}
     }
@@ -116,6 +139,7 @@ export default function useSyntheWorklet() {
     const promises = Array.from(voicesRef.current.keys()).map(midi => noteOff(midi));
     await Promise.all(promises);
 
+    //catchで失敗してもいいようにしておく
     contextRef.current?.close().catch(() => {});
 
     // 状態をリセット
@@ -127,19 +151,21 @@ export default function useSyntheWorklet() {
 
   }, [noteOff]);
 
-  //UIで操作を行ったパラメータの更新
+  //UIで操作を行ったパラメータの更新(音量・波・短形波)
   useEffect(() => {
     const masterAmp = masterAmpRef.current;
     if (masterAmp) {
+      // 現在の時刻に音量をセット
       masterAmp.gain.setValueAtTime(gain, masterAmp.context.currentTime);
     }
     voicesRef.current.forEach((voice) => {
+      // 現在の時刻に波形と幅をセット
       voice.node.parameters.get('wave')?.setValueAtTime(wave, voice.node.context.currentTime);
       voice.node.parameters.get('pulseWidth')?.setValueAtTime(pulseWidth, voice.node.context.currentTime);
     });
   }, [gain, wave, pulseWidth]);
 
-  // フィルターのパラメータが変更されたらAudioNodeに反映
+  // フィルターのパラメータが変更されたらAudioContextに反映
   useEffect(() => {
     const ac = contextRef.current;
     const filterNode = filterNodeRef.current;
@@ -213,13 +239,13 @@ export default function useSyntheWorklet() {
 
     // --- 新ロジック: マスターゲインは固定し、各ボイスのゲインを調整 ---
     const voiceCount = voicesRef.current.size + 1;
-    const newTargetGain = 1.0 / voiceCount;
+    const newGain = 1.0 / voiceCount;
 
     // --- 新ロジック: 先に既存ボイスのゲインを下げる ---
     voicesRef.current.forEach(voice => {
       voice.amp.gain.cancelScheduledValues(now);
       voice.amp.gain.setValueAtTime(voice.amp.gain.value, now);
-      voice.amp.gain.linearRampToValueAtTime(newTargetGain, now + rampTime);
+      voice.amp.gain.linearRampToValueAtTime(newGain, now + rampTime);
     });
 
     const f = midiToFreq(midi);
@@ -247,7 +273,7 @@ export default function useSyntheWorklet() {
     voicesRef.current.set(midi, { node, amp });
 
     // ADSRエンベロープを適用
-    const peakGain = newTargetGain;
+    const peakGain = newGain;
     const sustainGain = peakGain * sustain;
 
     amp.gain.cancelScheduledValues(now);

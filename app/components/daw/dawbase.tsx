@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import getKeyToneBlackMap from '@/hooks/keyToneBlackMap';
-import KeyMap from '@/hooks/keyMap';
+import getKeyToneBlackMap from '@/logic/keyToneBlackMap';
+import KeyMap from '@/logic/keyMap';
 import Keyboard from "./keyboard";
 import BlackKey from "./blackkey";
 import Notes from "./notes";
-import useHandleClickNote from '@/hooks/useHandleClickNote';
-import KeyboardController from '@/hooks/keyController';
+import useHandleClickNote from '@/logic/useHandleClickNote';
+import KeyboardController from '@/logic/keyController';
 
 export default function DawBase(){
 

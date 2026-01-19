@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Keyboard from "./keyboard";
-import useHandleClickNote from "@/hooks/useHandleClickNote";
-import KeyboardController from '@/hooks/keyController';
-import KeyMap from '@/hooks/keyMap';
-import { useSynthe } from '@/hooks/SyntheProvider';
-import SpectrumCanvas from '@/hooks/SpectrumCanvas';
-import WaveDisplay from '@/hooks/WaveDisplay';
+import useHandleClickNote from "@/logic/useHandleClickNote";
+import KeyboardController from '@/logic/keyController';
+import KeyMap from '@/logic/keyMap';
+import { useSynthe } from '@/logic/SyntheProvider';
+import SpectrumCanvas from '@/logic/SpectrumCanvas';
+import WaveDisplay from '@/logic/WaveDisplay';
 
 export default function Scale(){
   const [keyBoardNumber, setKeyBoardNumber] = useState(5); //盤面のモードチェンジ
@@ -37,11 +37,7 @@ export default function Scale(){
     analyserRef,
   } = useSynthe();
 
-  // コンポーネントがマウントされた時にAudioContextを初期化する
   useEffect(() => {
-    // AudioContextの初期化はユーザー操作をきっかけにする必要があるため、
-    // ここではstart()を直接呼び出さず、ユーザーの最初のインタラクションを待つのが一般的です。
-    // しかし、今回は表示直後からアナライザーを動かすため、start()を呼び出します。
     start();
   }, [start]);
 

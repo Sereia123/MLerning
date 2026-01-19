@@ -2,8 +2,8 @@
 
 import WhiteKey from "./whitekey";
 import BlackKey from "./blackkey";
-import getKeyToneWhiteMap from "@/hooks/scaleKeyToneWhiteMap";
-import getKeyToneBlackMap from "@/hooks/scaleKeyToneBlackMap";
+import getKeyToneWhiteMap from "@/logic/scaleKeyToneWhiteMap";
+import getKeyToneBlackMap from "@/logic/scaleKeyToneBlackMap";
 
 type KeyboardProps = {
   keyBoardNumber: number;

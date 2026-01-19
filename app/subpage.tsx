@@ -1,5 +1,5 @@
 'use client';
-import { useSynthe } from '@/hooks/SyntheProvider';
+import { useSynthe } from '@/logic/SyntheProvider';
 
 export default function SubPage(){
   const { running, start, stop, freq, setFreq, gain, setGain, wave, setWave, pulseWidth, setPulseWidth, noteOn, noteOff, duration, setDuration, mode, setMode } = useSynthe();

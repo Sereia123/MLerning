@@ -1,4 +1,4 @@
-import { useSynthe } from "@/hooks/SyntheProvider";
+import { useSynthe } from "@/logic/SyntheProvider";
 
 
 export default function useHandleClickNote() {

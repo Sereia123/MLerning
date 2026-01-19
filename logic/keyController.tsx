@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useSynthe } from '@/hooks/SyntheProvider'
+import { useSynthe } from '@/logic/SyntheProvider'
 
 type KeyMap = Record<string, number | undefined>
 
