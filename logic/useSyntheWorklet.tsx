@@ -4,7 +4,7 @@ import { getAudioContextConst, loadWorkletModule } from '@/lib/audio';
 import midiToFreq from '@/logic/midiToFreq';
 
 // --- Types ---
-interface SyntheSettings {
+export interface SyntheSettings {
   id: number;
   on: boolean;
   osc: {
@@ -12,6 +12,7 @@ interface SyntheSettings {
     pulseWidth: number;
     semi: number;
     cent: number;
+    octave: number;
   };
   filter: {
     type: BiquadFilterType | 'off';
@@ -39,15 +40,15 @@ const initialSynthes: SyntheSettings[] = [
   {
     id: 1,
     on: true,
-    osc: { wave: 1, pulseWidth: 0.5, semi: 0, cent: 0 },
-    filter: { type: 'lowpass', freq: 8000, q: 1 },
+    osc: { wave: 1, pulseWidth: 0.5, semi: 0, cent: 0, octave: 0 },
+    filter: { type: 'off', freq: 8000, q: 0.7 },
     adsr: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 0.05 },
     mix: 0.7,
   },
   {
     id: 2,
     on: false,
-    osc: { wave: 2, pulseWidth: 0.5, semi: 12, cent: 0 },
+    osc: { wave: 2, pulseWidth: 0.5, semi: 12, cent: 0, octave: 0 },
     filter: { type: 'off', freq: 8000, q: 1 },
     adsr: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 0.05 },
     mix: 0.5,
@@ -55,7 +56,7 @@ const initialSynthes: SyntheSettings[] = [
   {
     id: 3,
     on: false,
-    osc: { wave: 4, pulseWidth: 0.5, semi: -12, cent: 0 },
+    osc: { wave: 4, pulseWidth: 0.5, semi: -12, cent: 0, octave: 0 },
     filter: { type: 'off', freq: 8000, q: 1 },
     adsr: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 0.05 },
     mix: 0.5,
@@ -81,6 +82,7 @@ export default function useSyntheWorklet() {
   const ensureReady = useCallback(async () => {
     if (!isInitializedRef.current) {
       const AudioContext = getAudioContextConst();
+      if (!AudioContext) return;
       const ac = new AudioContext({ latencyHint: 'interactive' });
       const analyser = ac.createAnalyser();
       analyser.connect(ac.destination);
@@ -158,7 +160,7 @@ export default function useSyntheWorklet() {
         numberOfOutputs: 1,
         outputChannelCount: [1],
         parameterData: {
-          frequency1: baseFreq * Math.pow(2, (osc.semi * 100 + osc.cent) / 1200),
+          frequency1: baseFreq * Math.pow(2, ((osc.semi + osc.octave * 12) * 100 + osc.cent) / 1200),
           wave1: osc.wave,
           pulseWidth1: osc.pulseWidth,
         },
@@ -239,7 +241,7 @@ export default function useSyntheWorklet() {
           const { osc, filter, mix } = synthe;
 
           // Update worklet parameters
-          workletNode.parameters.get('frequency1')?.setValueAtTime(baseFreq * Math.pow(2, (osc.semi * 100 + osc.cent) / 1200), now);
+          workletNode.parameters.get('frequency1')?.setValueAtTime(baseFreq * Math.pow(2, ((osc.semi + osc.octave * 12) * 100 + osc.cent) / 1200), now);
           workletNode.parameters.get('wave1')?.setValueAtTime(osc.wave, now);
           workletNode.parameters.get('pulseWidth1')?.setValueAtTime(osc.pulseWidth, now);
 

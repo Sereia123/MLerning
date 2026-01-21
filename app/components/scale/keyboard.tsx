@@ -41,7 +41,7 @@ export default function Keyboard({ keyBoardNumber, activeKeys, onNoteDown, onNot
           </div>
         ))}
 
-        <div className="absolute z=10 top-0 left-0 w-full h-[100px] flex">
+        <div className="absolute z-10 top-0 left-0 w-full h-[100px] flex">
            {keyToneBlackMap.map(([x, note], idx) => (
             <div
               key={idx}

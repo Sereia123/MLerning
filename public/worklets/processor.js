@@ -1,6 +1,5 @@
 // public/worklets/processor.js
 
-// 波形を生成するヘルパー関数
 const wave = (phase, type, pulseWidth) => {
   const p = phase % (2 * Math.PI);
   switch (type) {

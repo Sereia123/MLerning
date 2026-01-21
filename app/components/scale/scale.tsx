@@ -8,6 +8,9 @@ import KeyMap from '@/logic/keyMap';
 import { useSynthe } from '@/logic/SyntheProvider';
 import SpectrumCanvas from '@/logic/SpectrumCanvas';
 import WaveDisplay from '@/logic/WaveDisplay';
+import { SyntheSettings } from '@/logic/useSyntheWorklet';
+
+type NestedSyntheGroup = 'osc' | 'filter' | 'adsr';
 
 export default function Scale(){
   const [keyBoardNumber, setKeyBoardNumber] = useState(5); //盤面のモードチェンジ
@@ -33,17 +36,20 @@ export default function Scale(){
   const [isPanelVisible, setIsPanelVisible] = useState(false); // パネルの表示状態を管理
 
   // Helper to update deeply nested state immutably
-  const handleNestedChange = (group: keyof typeof activeSynthe, key: string, value: any) => {
+  const handleNestedChange = <G extends NestedSyntheGroup, K extends keyof SyntheSettings[G]>(
+    group: G,
+    key: K,
+    value: SyntheSettings[G][K]
+  ) => {
     setSynthes(prevSynthes =>
       prevSynthes.map(synthe => {
         if (synthe.id === activeSyntheId) {
-          const groupObject = synthe[group as keyof typeof synthe] as object;
           return {
             ...synthe,
             [group]: {
-              ...groupObject,
-              [key]: value
-            }
+              ...synthe[group],
+              [key]: value,
+            },
           };
         }
         return synthe;
@@ -51,12 +57,15 @@ export default function Scale(){
     );
   };
 
-  const handleValueChange = (key: keyof typeof activeSynthe, value: any) => {
-      setSynthes(prevSynthes =>
-          prevSynthes.map(synthe =>
-              synthe.id === activeSyntheId ? { ...synthe, [key]: value } : synthe
-          )
-      );
+  const handleValueChange = <K extends keyof SyntheSettings>(
+    key: K,
+    value: SyntheSettings[K]
+  ) => {
+    setSynthes(prevSynthes =>
+      prevSynthes.map(synthe =>
+        synthe.id === activeSyntheId ? { ...synthe, [key]: value } : synthe
+      )
+    );
   };
 
   const handleNoteDown = (midi: number) => {
@@ -165,9 +174,40 @@ export default function Scale(){
                 >
                   <option value={1}>Sine</option>
                   <option value={2}>Saw</option>
-                  <option value={3}>Square</option>
-                  <option value={4}>Pulse</option>
+                  <option value={3}>Triangle</option>
+                  <option value={4}>Square</option>
+                  <option value={5}>Pulse</option>
                 </select>
+
+                {osc.wave === 5 && (
+                  <div>
+                    <label htmlFor="pulsewidth-slider" className="mr-2">Pulse Width: {osc.pulseWidth.toFixed(2)}</label>
+                    <input
+                      type="range" id="pulsewidth-slider" min="0.01" max="0.99" step="0.01"
+                      value={osc.pulseWidth} onChange={(e) => handleNestedChange('osc', 'pulseWidth', Number(e.target.value))} className="w-full"
+                    />
+                  </div>
+                )}
+
+                {activeSynthe.id > 1 && (
+                  <div>
+                    <label htmlFor="octave-control" className="mr-2">Octave: {osc.octave > 0 ? '+' : ''}{osc.octave}</label>
+                    <div id="octave-control" className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleNestedChange('osc', 'octave', Math.max(-2, osc.octave - 1))}
+                        className="bg-gray-600 px-3 py-1 rounded"
+                      >-</button>
+                      <input
+                        type="range" min="-2" max="2" step="1"
+                        value={osc.octave} onChange={(e) => handleNestedChange('osc', 'octave', Number(e.target.value))} className="w-full"
+                      />
+                      <button 
+                        onClick={() => handleNestedChange('osc', 'octave', Math.min(2, osc.octave + 1))}
+                        className="bg-gray-600 px-3 py-1 rounded"
+                      >+</button>
+                    </div>
+                  </div>
+                )}
 
                 <label htmlFor="gain-slider" className="mr-2">Volume: {mix.toFixed(2)}</label>
                 <input
@@ -182,7 +222,7 @@ export default function Scale(){
                 <select
                   id="filter-type-select"
                   value={filter.type}
-                  onChange={(e) => handleNestedChange('filter', 'type', e.target.value)}
+                  onChange={(e) => handleNestedChange('filter', 'type', e.target.value as BiquadFilterType | 'off')}
                   className="bg-gray-700 text-white p-2 rounded w-full"
                 >
                   <option value="off">Off</option>
