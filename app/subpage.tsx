@@ -19,26 +19,42 @@ export default function SubPage() {
 
   const activeSynthe = synthes.find(s => s.id === activeSyntheId);
 
+  type NestedSyntheGroup = 'osc' | 'filter' | 'adsr';
+  type SyntheSettings = typeof synthes[0];
+
   // Helper to update deeply nested state immutably
-  const handleNestedChange = (group: keyof typeof activeSynthe, key: string, value: any) => {
+  const handleNestedChange = <
+    G extends NestedSyntheGroup,
+    K extends keyof SyntheSettings[G]
+  >(
+    group: G,
+    key: K,
+    value: SyntheSettings[G][K]
+  ) => {
     setSynthes(prevSynthes =>
       prevSynthes.map(synthe => {
         if (synthe.id === activeSyntheId) {
-          const groupObject = synthe[group as keyof typeof synthe] as object;
-          return {
-            ...synthe,
-            [group]: {
-              ...groupObject,
-              [key]: value
-            }
-          };
+          // Use a switch statement for explicit, type-safe updates
+          switch (group) {
+            case 'osc':
+              return { ...synthe, osc: { ...synthe.osc, [key]: value } };
+            case 'filter':
+              return { ...synthe, filter: { ...synthe.filter, [key]: value } };
+            case 'adsr':
+              return { ...synthe, adsr: { ...synthe.adsr, [key]: value } };
+            default:
+              return synthe;
+          }
         }
         return synthe;
       })
     );
   };
   
-    const handleValueChange = (key: keyof typeof activeSynthe, value: any) => {
+    const handleValueChange = <K extends keyof SyntheSettings>(
+      key: K,
+      value: SyntheSettings[K]
+    ) => {
         setSynthes(prevSynthes =>
             prevSynthes.map(synthe =>
                 synthe.id === activeSyntheId ? { ...synthe, [key]: value } : synthe
