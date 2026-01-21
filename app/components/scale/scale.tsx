@@ -155,7 +155,7 @@ export default function Scale(){
         </div>
         {/*追加画面（パネル）*/}
         {isPanelVisible && (
-          <div className='absolute z-10 bg-blue-800/50 w-full mt-[500px] p-5 rounded-lg shadow-lg'>
+          <div className='absolute z-20 bg-blue-800/50 w-full mt-[500px] p-5 rounded-lg shadow-lg'>
              {/* --- Synth Tabs --- */}
             <div className="flex border-b border-gray-400 mb-4">
               {synthes.map(s => (
