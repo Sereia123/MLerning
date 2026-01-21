@@ -50,7 +50,7 @@ export default function Scale(){
               ...synthe[group],
               [key]: value,
             },
-          };
+          } as SyntheSettings;
         }
         return synthe;
       })
