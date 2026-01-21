@@ -117,7 +117,7 @@ export default function Scale(){
 
   return (
     <>
-      <div className="relative mx-auto w-[720px] p-4 grid grid-cols-3 gap-4 items-center text-white">
+      <div className="relative mx-auto w-180 p-4 grid grid-cols-3 gap-4 items-center text-white">
         <div>
           <label htmlFor="key-select" className="text-white mr-2">KeyScale:</label>
           <select
@@ -155,7 +155,7 @@ export default function Scale(){
         </div>
         {/*追加画面（パネル）*/}
         {isPanelVisible && (
-          <div className='absolute z-20 bg-blue-800/50 w-full mt-[500px] p-5 rounded-lg shadow-lg'>
+          <div className='absolute z-20 bg-blue-800/50 w-full mt-125 p-5 rounded-lg shadow-lg'>
              {/* --- Synth Tabs --- */}
             <div className="flex border-b border-gray-400 mb-4">
               {synthes.map(s => (
@@ -302,13 +302,13 @@ export default function Scale(){
         )}
       </div>
 
-      <div className="mx-auto w-[720px] flex flex-col items-center gap-4">
+      <div className="mx-auto w-180 flex flex-col items-center gap-4">
         <KeyboardController 
           keyMap={KeyMap(keyBoardNumber)}
           onNoteDown={handleNoteDown} 
           onNoteUp={handleNoteUp} 
         />
-        <div className="h-[200px] w-full">
+        <div className="h-50 w-full">
           <Keyboard 
             keyBoardNumber={keyBoardNumber}
             activeKeys={pressedKeys}
