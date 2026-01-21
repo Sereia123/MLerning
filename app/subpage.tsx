@@ -149,7 +149,7 @@ export default function SubPage() {
             <h3 className="font-bold mb-2">Filter</h3>
              <label className="block">
                 <span className="text-sm">Type</span>
-                <select value={filter.type} onChange={(e) => handleNestedChange('filter', 'type', e.target.value)} className="w-full border rounded p-2 bg-gray-800">
+                <select value={filter.type} onChange={(e) => handleNestedChange('filter', 'type', e.target.value as BiquadFilterType | 'off')} className="w-full border rounded p-2 bg-gray-800">
                     <option value="off">Off</option>
                     <option value="lowpass">Lowpass</option>
                     <option value="highpass">Highpass</option>
