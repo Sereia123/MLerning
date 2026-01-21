@@ -36,7 +36,10 @@ export default function Scale(){
   const [isPanelVisible, setIsPanelVisible] = useState(false); // パネルの表示状態を管理
 
   // Helper to update deeply nested state immutably
-  const handleNestedChange = <G extends NestedSyntheGroup, K extends keyof SyntheSettings[G]>(
+  const handleNestedChange = <
+    G extends NestedSyntheGroup,
+    K extends keyof SyntheSettings[G]
+  >(
     group: G,
     key: K,
     value: SyntheSettings[G][K]
@@ -44,13 +47,26 @@ export default function Scale(){
     setSynthes(prevSynthes =>
       prevSynthes.map(synthe => {
         if (synthe.id === activeSyntheId) {
-          return {
-            ...synthe,
-            [group]: {
-              ...synthe[group],
-              [key]: value,
-            },
-          } as SyntheSettings;
+          // Use a switch statement for explicit, type-safe updates
+          switch (group) {
+            case 'osc':
+              return {
+                ...synthe,
+                osc: { ...synthe.osc, [key]: value },
+              };
+            case 'filter':
+              return {
+                ...synthe,
+                filter: { ...synthe.filter, [key]: value },
+              };
+            case 'adsr':
+              return {
+                ...synthe,
+                adsr: { ...synthe.adsr, [key]: value },
+              };
+            default:
+              return synthe;
+          }
         }
         return synthe;
       })
